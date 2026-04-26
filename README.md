@@ -1,5 +1,7 @@
 # ProxyChainGen
 
+**[Open Web App](https://arefbhrn.github.io/ProxyChainGen/)**
+
 Chain multiple V2Ray/Xray proxies into a single config file.  
 **Flow:** `Client → A → B → … → Internet`
 
