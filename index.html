@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProxyChainGen</title>
+  <style>
+    :root {
+      --bg:     #1e1e2e;
+      --panel:  #24273a;
+      --entry:  #313244;
+      --accent: #89b4fa;
+      --fg:     #cdd6f4;
+      --muted:  #6c7086;
+      --green:  #a6e3a1;
+      --red:    #f38ba8;
+      --r:      6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--entry);
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 18px; color: var(--accent); font-weight: 700; letter-spacing: -.3px; }
+    header .sub { color: var(--muted); font-size: 13px; font-family: monospace; }
+
+    main {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 12px;
+      padding: 12px 16px 16px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Left panel ── */
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    #proxy-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-height: 0;
+      background: var(--panel);
+      border-radius: var(--r);
+      padding: 6px;
+    }
+
+    .proxy-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px;
+      background: var(--entry);
+      border-radius: 4px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color .1s;
+      user-select: none;
+    }
+    .proxy-item.selected { border-color: var(--accent); }
+    .proxy-item:hover:not(.selected) { border-color: var(--muted); }
+
+    .proxy-num  { color: var(--muted); font-size: 11px; font-family: monospace; min-width: 22px; }
+    .proxy-label {
+      flex: 1;
+      font-family: monospace;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .proxy-badge {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--panel);
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .empty-hint {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 28px 0;
+    }
+
+    .btn-row { display: flex; gap: 6px; }
+
+    button {
+      border: none;
+      cursor: pointer;
+      border-radius: var(--r);
+      font-size: 13px;
+      padding: 6px 12px;
+      font-family: inherit;
+      font-weight: 500;
+      transition: opacity .1s, filter .1s;
+      white-space: nowrap;
+    }
+    button:hover  { filter: brightness(1.1); }
+    button:active { filter: brightness(.9); }
+    button:disabled { opacity: .4; cursor: default; }
+
+    .btn-accent { background: var(--accent); color: var(--bg); }
+    .btn-panel  { background: var(--entry);  color: var(--fg); }
+    .btn-green  { background: var(--green);  color: var(--bg); font-weight: 700; }
+    .btn-ghost  { background: transparent;   color: var(--red); border: 1px solid var(--red); }
+    .btn-icon   { padding: 6px 10px; }
+
+    #status {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .port-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .port-row label { color: var(--muted); font-size: 13px; }
+    .port-row input {
+      width: 72px;
+      background: var(--entry);
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: var(--fg);
+      font-family: monospace;
+      font-size: 13px;
+      padding: 5px 8px;
+      outline: none;
+    }
+    .port-row input:focus { border-color: var(--accent); }
+    .port-hint { color: var(--muted); font-size: 11px; }
+
+    /* ── Right panel ── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #out-status { font-size: 12px; color: var(--muted); font-family: monospace; }
+
+    #output {
+      flex: 1;
+      background: var(--panel);
+      border-radius: var(--r);
+      color: var(--fg);
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 12px;
+      resize: none;
+      border: none;
+      outline: none;
+      overflow: auto;
+      white-space: pre;
+      min-height: 0;
+      line-height: 1.5;
+    }
+
+    /* ── Modal ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 22px;
+      width: 560px;
+      max-width: 95vw;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.55);
+    }
+    .modal h2   { font-size: 15px; }
+    .modal p    { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .modal textarea {
+      background: var(--entry);
+      border: 1px solid transparent;
+      border-radius: var(--r);
+      color: var(--fg);
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 10px;
+      resize: vertical;
+      outline: none;
+      width: 100%;
+      line-height: 1.5;
+    }
+    .modal textarea:focus { border-color: var(--accent); }
+
+    .modal-btns { display: flex; justify-content: flex-end; gap: 8px; }
+
+    .err { font-size: 12px; color: var(--red); min-height: 16px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--entry); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ProxyChainGen</h1>
+  <span class="sub">Client → A → B → … → Internet</span>
+</header>
+
+<main>
+  <div class="left-panel">
+    <span class="section-label">Proxy Chain &nbsp;<span style="font-size:9px">(top = first hop)</span></span>
+
+    <div id="proxy-list">
+      <div class="empty-hint">Add at least 2 proxies</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-accent" onclick="openModal('uri')">+ URI</button>
+      <button class="btn-panel"  onclick="openModal('json')">+ JSON</button>
+      <button class="btn-panel btn-icon" onclick="moveUp()"        title="Move up">↑</button>
+      <button class="btn-panel btn-icon" onclick="moveDown()"      title="Move down">↓</button>
+      <button class="btn-ghost  btn-icon" onclick="removeSelected()" title="Remove">✕</button>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="port-row">
+      <label for="socks-port">SOCKS5 port:</label>
+      <input type="number" id="socks-port" value="1080" min="1" max="65534">
+      <span class="port-hint">HTTP = port+1</span>
+    </div>
+
+    <button class="btn-green" onclick="generate()" style="padding:10px;width:100%">
+      ⚡ Generate Chain
+    </button>
+  </div>
+
+  <div class="right-panel">
+    <div class="output-header">
+      <span class="section-label">Output JSON</span>
+      <span id="out-status"></span>
+    </div>
+    <textarea id="output" readonly placeholder="Generated config will appear here…"></textarea>
+    <div class="btn-row">
+      <button class="btn-accent" onclick="copyOutput()">Copy</button>
+      <button class="btn-panel"  onclick="saveOutput()">Save as…</button>
+    </div>
+  </div>
+</main>
+
+<!-- Paste modal -->
+<div class="overlay hidden" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="modal-title"></h2>
+    <p  id="modal-hint"></p>
+    <textarea id="modal-input" spellcheck="false"></textarea>
+    <div class="err" id="modal-err"></div>
+    <div class="modal-btns">
+      <button class="btn-panel"  onclick="closeModal()">Cancel</button>
+      <button class="btn-accent" onclick="confirmModal()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const entries = [];   // { label, proto, source:'uri'|'json', parsed?, outbound? }
+let sel = -1;
+let modalMode = '';
+
+// ── Base64 ───────────────────────────────────────────────────────────────────
+function b64pad(s)    { return s + '='.repeat((4 - s.length % 4) % 4); }
+function b64dec(s)    { return atob(b64pad(s.replace(/-/g,'+').replace(/_/g,'/'))); }
+
+// ── URI parsers ──────────────────────────────────────────────────────────────
+function parseVmess(uri) {
+  let j;
+  try { j = JSON.parse(b64dec(uri.slice(8))); }
+  catch(e) { throw new Error(`Invalid vmess URI: ${e.message}`); }
+  return {
+    type:'vmess', remark: j.ps||'vmess',
+    address: j.add||'', port: parseInt(j.port)||443,
+    uuid: j.id||'', alterId: parseInt(j.aid)||0,
+    security: j.scy||'auto', network: j.net||'tcp',
+    tls: j.tls||'', sni: j.sni||j.host||'',
+    path: j.path||'', host: j.host||'',
+    alpn: j.alpn||'', fp: j.fp||'',
+  };
+}
+
+function parseVless(uri) {
+  const u = new URL(uri), q = u.searchParams;
+  return {
+    type:'vless', remark: decodeURIComponent(u.hash.slice(1))||'vless',
+    uuid: u.username||'', address: u.hostname||'',
+    port: u.port ? parseInt(u.port) : 443,
+    encryption: q.get('encryption')||'none', flow: q.get('flow')||'',
+    network: q.get('type')||'tcp', security: q.get('security')||'none',
+    sni: q.get('sni')||'', fp: q.get('fp')||'',
+    path: q.get('path')||'', host: q.get('host')||'',
+    serviceName: q.get('serviceName')||'', pbk: q.get('pbk')||'',
+    sid: q.get('sid')||'', spx: q.get('spx')||'', alpn: q.get('alpn')||'',
+  };
+}
+
+function parseTrojan(uri) {
+  const u = new URL(uri), q = u.searchParams;
+  return {
+    type:'trojan', remark: decodeURIComponent(u.hash.slice(1))||'trojan',
+    password: decodeURIComponent(u.username||''),
+    address: u.hostname||'', port: u.port ? parseInt(u.port) : 443,
+    network: q.get('type')||'tcp', security: q.get('security')||'tls',
+    sni: q.get('sni')||u.hostname||'', fp: q.get('fp')||'',
+    path: q.get('path')||'', host: q.get('host')||'',
+    serviceName: q.get('serviceName')||'', alpn: q.get('alpn')||'',
+  };
+}
+
+function parseSS(uri) {
+  const hi = uri.indexOf('#');
+  const remark = hi >= 0 ? decodeURIComponent(uri.slice(hi+1)) : 'shadowsocks';
+  const body   = uri.slice(5, hi >= 0 ? hi : undefined);  // after ss://
+
+  if (body.includes('@')) {
+    // Modern: [b64(method:pass) | method:pass] @ host:port
+    const u = new URL(uri.split('#')[0]);
+    let method, password;
+    try {
+      const dec = b64dec(u.username);
+      const ci  = dec.indexOf(':');
+      method = dec.slice(0, ci); password = dec.slice(ci+1);
+    } catch {
+      method = decodeURIComponent(u.username||'');
+      password = decodeURIComponent(u.password||'');
+    }
+    return { type:'shadowsocks', remark, method, password,
+             address: u.hostname, port: parseInt(u.port)||443 };
+  } else {
+    // Legacy: b64(method:pass@host:port)
+    const dec = b64dec(body);
+    const m = dec.match(/^(.+?):(.+)@(.+):(\d+)$/);
+    if (!m) throw new Error('Cannot parse ss URI');
+    return { type:'shadowsocks', remark, method:m[1], password:m[2],
+             address:m[3], port:parseInt(m[4]) };
+  }
+}
+
+function parseURI(uri) {
+  uri = uri.trim();
+  if (uri.startsWith('vmess://'))  return parseVmess(uri);
+  if (uri.startsWith('vless://'))  return parseVless(uri);
+  if (uri.startsWith('trojan://')) return parseTrojan(uri);
+  if (uri.startsWith('ss://'))     return parseSS(uri);
+  throw new Error(`Unsupported scheme: ${uri.slice(0,40)}`);
+}
+
+// ── Stream settings ──────────────────────────────────────────────────────────
+function buildStream(cfg) {
+  const network  = cfg.network  || 'tcp';
+  const security = cfg.security || cfg.tls || '';
+  const s = { network };
+
+  if (security === 'reality') {
+    s.security = 'reality';
+    s.realitySettings = {
+      serverName:  cfg.sni || '',
+      fingerprint: cfg.fp  || 'chrome',
+      publicKey:   cfg.pbk || '',
+      shortId:     cfg.sid || '',
+      spiderX:     cfg.spx || '/',
+    };
+  } else if (security === 'tls' || cfg.tls === 'tls') {
+    s.security = 'tls';
+    const tls = {};
+    if (cfg.sni)  tls.serverName  = cfg.sni;
+    if (cfg.fp)   tls.fingerprint = cfg.fp;
+    if (cfg.alpn) tls.alpn = cfg.alpn.split(',').map(a=>a.trim()).filter(Boolean);
+    s.tlsSettings = tls;
+  }
+
+  if (network === 'ws') {
+    const ws = { path: cfg.path||'/' };
+    if (cfg.host) ws.headers = { Host: cfg.host };
+    s.wsSettings = ws;
+  } else if (network === 'grpc') {
+    s.grpcSettings = { serviceName: cfg.serviceName||cfg.path||'' };
+  } else if (network === 'h2' || network === 'http') {
+    const h2 = { path: cfg.path||'/' };
+    if (cfg.host) h2.host = cfg.host.split(',').map(h=>h.trim());
+    s.httpSettings = h2;
+  }
+
+  return s;
+}
+
+// ── Outbound builder ─────────────────────────────────────────────────────────
+function uriToOutbound(cfg, tag) {
+  const stream = buildStream(cfg);
+  if (cfg.type === 'vmess') {
+    return { tag, protocol:'vmess',
+      settings:{ vnext:[{ address:cfg.address, port:cfg.port,
+        users:[{ id:cfg.uuid, alterId:cfg.alterId||0, security:cfg.security||'auto' }] }] },
+      streamSettings: stream };
+  }
+  if (cfg.type === 'vless') {
+    const user = { id:cfg.uuid, encryption:cfg.encryption||'none' };
+    if (cfg.flow) user.flow = cfg.flow;
+    return { tag, protocol:'vless',
+      settings:{ vnext:[{ address:cfg.address, port:cfg.port, users:[user] }] },
+      streamSettings: stream };
+  }
+  if (cfg.type === 'trojan') {
+    return { tag, protocol:'trojan',
+      settings:{ servers:[{ address:cfg.address, port:cfg.port, password:cfg.password }] },
+      streamSettings: stream };
+  }
+  if (cfg.type === 'shadowsocks') {
+    return { tag, protocol:'shadowsocks',
+      settings:{ servers:[{ address:cfg.address, port:cfg.port,
+        method:cfg.method, password:cfg.password, level:0 }] },
+      streamSettings:{ network:'tcp' } };
+  }
+  throw new Error(`Unknown type: ${cfg.type}`);
+}
+
+// ── JSON outbound extractor ───────────────────────────────────────────────────
+const SKIP = new Set(['freedom','blackhole','dns','loopback']);
+
+function extractOutbound(cfg) {
+  for (const ob of cfg.outbounds||[])
+    if (!SKIP.has(ob.protocol)) return ob;
+  throw new Error('No proxy outbound found in config');
+}
+
+// ── Chain builder ────────────────────────────────────────────────────────────
+function buildChain(ents, socksPort) {
+  if (ents.length < 2) throw new Error('Need at least 2 entries');
+
+  const outbounds = ents.map((e, i) => {
+    const tag = `proxy-${String.fromCharCode(97+i)}`;
+    if (e.source === 'uri') return uriToOutbound(e.parsed, tag);
+    return { ...e.outbound, tag };
+  });
+
+  for (let i = 1; i < outbounds.length; i++) {
+    const prevSec = outbounds[i-1].streamSettings?.security || '';
+    outbounds[i].proxySettings = {
+      tag: outbounds[i-1].tag,
+      transportLayer: prevSec === 'tls' || prevSec === 'reality',
+    };
+  }
+
+  const lastTag = outbounds.at(-1).tag;
+  return {
+    log: { loglevel:'warning' },
+    inbounds: [
+      { tag:'socks', port:socksPort, listen:'127.0.0.1',
+        protocol:'socks', settings:{ auth:'noauth', udp:true },
+        sniffing:{ enabled:true, destOverride:['http','tls'] } },
+      { tag:'http', port:socksPort+1, listen:'127.0.0.1', protocol:'http' },
+    ],
+    outbounds: [
+      outbounds.at(-1),
+      ...outbounds.slice(0,-1),
+      { tag:'direct', protocol:'freedom',   settings:{} },
+      { tag:'block',  protocol:'blackhole',  settings:{} },
+    ],
+    routing: {
+      domainStrategy: 'IPIfNonMatch',
+      rules: [{ type:'field', inboundTag:['socks','http'], outboundTag:lastTag }],
+    },
+  };
+}
+
+// ── UI ───────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function refreshList() {
+  const list   = document.getElementById('proxy-list');
+  const status = document.getElementById('status');
+
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty-hint">Add at least 2 proxies</div>';
+    status.textContent = 'Add at least 2 configs';
+    status.style.color = 'var(--muted)';
+    return;
+  }
+
+  list.innerHTML = entries.map((e,i) => `
+    <div class="proxy-item${i===sel?' selected':''}" onclick="selectItem(${i})">
+      <span class="proxy-num">[${i+1}]</span>
+      <span class="proxy-label">${esc(e.label)}</span>
+      <span class="proxy-badge">${esc(e.proto)}</span>
+    </div>
+  `).join('');
+
+  const n = entries.length;
+  status.textContent = n === 1 ? 'Add 1 more config' : `${n} configs · ${n}-hop chain ready`;
+  status.style.color = n >= 2 ? 'var(--green)' : 'var(--muted)';
+}
+
+function selectItem(i) {
+  sel = i === sel ? -1 : i;
+  refreshList();
+}
+
+function moveUp() {
+  if (sel <= 0) return;
+  [entries[sel-1], entries[sel]] = [entries[sel], entries[sel-1]];
+  sel--;
+  refreshList();
+}
+
+function moveDown() {
+  if (sel < 0 || sel >= entries.length-1) return;
+  [entries[sel], entries[sel+1]] = [entries[sel+1], entries[sel]];
+  sel++;
+  refreshList();
+}
+
+function removeSelected() {
+  if (sel < 0 || sel >= entries.length) return;
+  entries.splice(sel, 1);
+  sel = entries.length ? Math.min(sel, entries.length-1) : -1;
+  refreshList();
+}
+
+function generate() {
+  const port = parseInt(document.getElementById('socks-port').value) || 1080;
+  const outStatus = document.getElementById('out-status');
+  try {
+    const result = buildChain(entries, port);
+    document.getElementById('output').value = JSON.stringify(result, null, 2);
+    const chain = entries.map((_,i) => `proxy-${String.fromCharCode(97+i)}`).join(' → ');
+    outStatus.textContent = `✓  ${chain} → Internet  ·  SOCKS5 :${port}  HTTP :${port+1}`;
+    outStatus.style.color = 'var(--green)';
+  } catch(e) {
+    outStatus.textContent = `✗  ${e.message}`;
+    outStatus.style.color = 'var(--red)';
+  }
+}
+
+function copyOutput() {
+  const text = document.getElementById('output').value.trim();
+  const outStatus = document.getElementById('out-status');
+  if (!text) { outStatus.textContent = 'Generate first'; return; }
+  navigator.clipboard.writeText(text).then(() => {
+    outStatus.textContent = 'Copied!';
+    outStatus.style.color = 'var(--accent)';
+  });
+}
+
+function saveOutput() {
+  const text = document.getElementById('output').value.trim();
+  if (!text) return;
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([text], {type:'application/json'})),
+    download: 'proxy-chain.json',
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+function openModal(mode) {
+  modalMode = mode;
+  document.getElementById('overlay').classList.remove('hidden');
+  document.getElementById('modal-err').textContent = '';
+  document.getElementById('modal-input').value = '';
+
+  if (mode === 'uri') {
+    document.getElementById('modal-title').textContent = 'Add — Paste URI(s)';
+    document.getElementById('modal-hint').textContent =
+      'One or more share links per line: vmess:// · vless:// · trojan:// · ss://';
+    document.getElementById('modal-input').rows = 6;
+  } else {
+    document.getElementById('modal-title').textContent = 'Add — Paste JSON';
+    document.getElementById('modal-hint').textContent =
+      'Paste a full V2Ray/Xray config JSON — or — a single outbound object.';
+    document.getElementById('modal-input').rows = 14;
+  }
+  document.getElementById('modal-input').focus();
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+function confirmModal() {
+  const text   = document.getElementById('modal-input').value.trim();
+  const errEl  = document.getElementById('modal-err');
+  errEl.textContent = '';
+  if (!text) { errEl.textContent = 'Nothing pasted.'; return; }
+
+  if (modalMode === 'uri') {
+    const lines  = text.split('\n').map(l=>l.trim()).filter(Boolean);
+    const added  = [], errs = [];
+    for (const line of lines) {
+      try {
+        const p = parseURI(line);
+        added.push({ label: p.remark || `${p.address}:${p.port}`, proto: p.type, parsed: p, source:'uri' });
+      } catch(e) { errs.push(e.message); }
+    }
+    if (!added.length) { errEl.textContent = errs[0] || 'No valid URIs found.'; return; }
+    entries.push(...added);
+    if (errs.length) errEl.textContent = `Added ${added.length}, skipped ${errs.length} error(s).`;
+    else closeModal();
+  } else {
+    try {
+      let cfg;
+      try { cfg = JSON.parse(text); } catch(e) { throw new Error(`Invalid JSON: ${e.message}`); }
+      let ob;
+      if ('outbounds' in cfg) {
+        ob = extractOutbound(cfg);
+      } else if ('protocol' in cfg) {
+        ob = cfg;
+      } else {
+        throw new Error('Paste a full V2Ray config or a single outbound object.');
+      }
+      const addr = ob.settings?.vnext?.[0]?.address
+                || ob.settings?.servers?.[0]?.address
+                || '?';
+      const port = ob.settings?.vnext?.[0]?.port
+                || ob.settings?.servers?.[0]?.port
+                || '?';
+      entries.push({ label:`${addr}:${port}`, proto: ob.protocol||'?', outbound: ob, source:'json' });
+      closeModal();
+    } catch(e) {
+      errEl.textContent = e.message; return;
+    }
+  }
+
+  sel = -1;
+  refreshList();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) &&
+      !document.getElementById('overlay').classList.contains('hidden')) {
+    confirmModal();
+  }
+});
+
+refreshList();
+</script>
+</body>
+</html>
