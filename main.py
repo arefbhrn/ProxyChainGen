@@ -152,7 +152,7 @@ def uri_cfg_to_outbound(cfg, tag):
     elif t == "shadowsocks":
         return {"tag": tag, "protocol": "shadowsocks",
                 "settings": {"servers": [{"address": cfg["address"], "port": cfg["port"],
-                    "method": cfg["method"], "password": cfg["password"]}]},
+                    "method": cfg["method"], "password": cfg["password"], "level": 0}]},
                 "streamSettings": {"network": "tcp"}}
     raise ValueError(f"Unknown type: {t}")
 
@@ -222,9 +222,12 @@ def build_chain(entries: list[dict], socks_port: int = 1080) -> dict:
 
     # proxy-b uses proxy-a as transport → traffic: local → A → B → internet
     for i in range(1, len(outbounds)):
+        prev_ob = outbounds[i - 1]
+        prev_sec = prev_ob.get("streamSettings", {}).get("security", "")
+        transport_layer = prev_sec in ("tls", "reality")
         outbounds[i]["proxySettings"] = {
-            "tag": outbounds[i - 1]["tag"],
-            "transportLayer": True,
+            "tag": prev_ob["tag"],
+            "transportLayer": transport_layer,
         }
 
     last_tag = outbounds[-1]["tag"]
