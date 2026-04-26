@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="22" fill="#1e1e2e"/>
+  <!-- Node A -->
+  <circle cx="18" cy="50" r="13" fill="#313244" stroke="#89b4fa" stroke-width="3.5"/>
+  <text x="18" y="54.5" text-anchor="middle" fill="#89b4fa" font-size="10" font-weight="700" font-family="monospace">A</text>
+  <!-- Node B -->
+  <circle cx="50" cy="50" r="13" fill="#313244" stroke="#89b4fa" stroke-width="3.5"/>
+  <text x="50" y="54.5" text-anchor="middle" fill="#89b4fa" font-size="10" font-weight="700" font-family="monospace">B</text>
+  <!-- Internet -->
+  <circle cx="82" cy="50" r="13" fill="#313244" stroke="#a6e3a1" stroke-width="3.5"/>
+  <text x="82" y="55" text-anchor="middle" fill="#a6e3a1" font-size="14" font-weight="700" font-family="sans-serif">↗</text>
+  <!-- Arrow A→B -->
+  <path d="M32 50 L36 50" stroke="#6c7086" stroke-width="3" stroke-linecap="round"/>
+  <path d="M34 46.5 L37.5 50 L34 53.5" fill="none" stroke="#6c7086" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Arrow B→C -->
+  <path d="M64 50 L68 50" stroke="#6c7086" stroke-width="3" stroke-linecap="round"/>
+  <path d="M66 46.5 L69.5 50 L66 53.5" fill="none" stroke="#6c7086" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -2,399 +2,460 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1e1e2e">
+  <meta name="description" content="Chain V2Ray/Xray proxies into a single config file">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ProxyChainGen">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
   <title>ProxyChainGen</title>
   <style>
-    :root {
-      --bg:     #1e1e2e;
-      --panel:  #24273a;
-      --entry:  #313244;
-      --accent: #89b4fa;
-      --fg:     #cdd6f4;
-      --muted:  #6c7086;
-      --green:  #a6e3a1;
-      --red:    #f38ba8;
-      --r:      6px;
-    }
+:root {
+  --bg:     #1e1e2e;
+  --panel:  #24273a;
+  --entry:  #313244;
+  --accent: #89b4fa;
+  --fg:     #cdd6f4;
+  --muted:  #6c7086;
+  --green:  #a6e3a1;
+  --red:    #f38ba8;
+  --pink:   #f5c2e7;
+  --peach:  #fab387;
+  --r:      10px;
+  --tab-h:  58px;
+}
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
 
-    body {
-      background: var(--bg);
-      color: var(--fg);
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-    header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 20px;
-      border-bottom: 1px solid var(--entry);
-      flex-shrink: 0;
-    }
-    header h1 { font-size: 18px; color: var(--accent); font-weight: 700; letter-spacing: -.3px; }
-    header .sub { color: var(--muted); font-size: 13px; font-family: monospace; }
+/* ── Header ─────────────────────────────────────────────────────────────── */
+header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--entry);
+  z-index: 10;
+}
+.app-logo { width: 32px; height: 32px; flex-shrink: 0; }
+header h1 { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: -.3px; }
+.header-sub { font-size: 11px; color: var(--muted); font-family: monospace; display: none; }
 
-    main {
-      display: grid;
-      grid-template-columns: 340px 1fr;
-      gap: 12px;
-      padding: 12px 16px 16px;
-      flex: 1;
-      min-height: 0;
-    }
+/* ── Panels container ────────────────────────────────────────────────────── */
+.panels {
+  flex: 1;
+  min-height: 0;
+  position: relative; /* mobile: panels are absolute children */
+}
 
-    /* ── Left panel ── */
-    .left-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 0;
-    }
+/* ── Panel (mobile: absolute fill, one at a time) ──────────────────────── */
+.panel {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 14px);
+}
+.panel--hidden { display: none; }
 
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
+/* ── Section label ───────────────────────────────────────────────────────── */
+.lbl {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
 
-    #proxy-list {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      min-height: 0;
-      background: var(--panel);
-      border-radius: var(--r);
-      padding: 6px;
-    }
+/* ── Chain flow bar ──────────────────────────────────────────────────────── */
+.chain-flow {
+  font-family: monospace; font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 7px 12px;
+  background: var(--panel); border-radius: 8px;
+  display: none;
+}
+.chain-flow.show { display: block; }
+.chain-flow .n { color: var(--fg); }
+.chain-flow .a { color: var(--muted); margin: 0 3px; }
+.chain-flow .d { color: var(--green); }
 
-    .proxy-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 9px;
-      background: var(--entry);
-      border-radius: 4px;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: border-color .1s;
-      user-select: none;
-    }
-    .proxy-item.selected { border-color: var(--accent); }
-    .proxy-item:hover:not(.selected) { border-color: var(--muted); }
+/* ── Proxy list ──────────────────────────────────────────────────────────── */
+.list-card {
+  background: var(--panel); border-radius: var(--r);
+  overflow: hidden; flex-shrink: 0;
+}
 
-    .proxy-num  { color: var(--muted); font-size: 11px; font-family: monospace; min-width: 22px; }
-    .proxy-label {
-      flex: 1;
-      font-family: monospace;
-      font-size: 12px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .proxy-badge {
-      font-size: 10px;
-      padding: 1px 5px;
-      border-radius: 3px;
-      background: var(--panel);
-      color: var(--accent);
-      font-weight: 700;
-      text-transform: uppercase;
-      flex-shrink: 0;
-    }
+.proxy-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-left: 3px solid transparent;
+  cursor: pointer; user-select: none;
+  transition: background .1s, border-color .1s;
+  min-height: 52px;
+}
+.proxy-item + .proxy-item { border-top: 1px solid var(--entry); }
+.proxy-item:hover:not(.sel) { background: rgba(255,255,255,.03); }
+.proxy-item:active { background: rgba(255,255,255,.05); }
+.proxy-item.sel { border-left-color: var(--accent); background: rgba(137,180,250,.07); }
 
-    .empty-hint {
-      color: var(--muted);
-      font-size: 13px;
-      text-align: center;
-      padding: 28px 0;
-    }
+.proxy-num   { color: var(--muted); font-family: monospace; font-size: 11px; min-width: 24px; }
+.proxy-label { flex: 1; font-family: monospace; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .btn-row { display: flex; gap: 6px; }
+.proto-badge {
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  padding: 2px 8px; border-radius: 99px; flex-shrink: 0;
+}
+.proto-vless       { background: rgba(137,180,250,.15); color: var(--accent); }
+.proto-vmess       { background: rgba(245,194,231,.15); color: var(--pink); }
+.proto-trojan      { background: rgba(250,179,135,.15); color: var(--peach); }
+.proto-shadowsocks { background: rgba(166,227,161,.15); color: var(--green); }
 
-    button {
-      border: none;
-      cursor: pointer;
-      border-radius: var(--r);
-      font-size: 13px;
-      padding: 6px 12px;
-      font-family: inherit;
-      font-weight: 500;
-      transition: opacity .1s, filter .1s;
-      white-space: nowrap;
-    }
-    button:hover  { filter: brightness(1.1); }
-    button:active { filter: brightness(.9); }
-    button:disabled { opacity: .4; cursor: default; }
+.empty-state {
+  padding: 36px 16px; text-align: center; color: var(--muted);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+.empty-sub { font-size: 12px; margin-top: 5px; opacity: .65; }
 
-    .btn-accent { background: var(--accent); color: var(--bg); }
-    .btn-panel  { background: var(--entry);  color: var(--fg); }
-    .btn-green  { background: var(--green);  color: var(--bg); font-weight: 700; }
-    .btn-ghost  { background: transparent;   color: var(--red); border: 1px solid var(--red); }
-    .btn-icon   { padding: 6px 10px; }
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
-    #status {
-      font-size: 12px;
-      color: var(--muted);
-    }
+button {
+  border: none; cursor: pointer;
+  border-radius: 8px;
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 10px 16px; min-height: 44px;
+  transition: filter .1s, transform .08s;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+button:hover  { filter: brightness(1.1); }
+button:active { filter: brightness(.82); transform: scale(.96); }
 
-    .port-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .port-row label { color: var(--muted); font-size: 13px; }
-    .port-row input {
-      width: 72px;
-      background: var(--entry);
-      border: 1px solid transparent;
-      border-radius: 4px;
-      color: var(--fg);
-      font-family: monospace;
-      font-size: 13px;
-      padding: 5px 8px;
-      outline: none;
-    }
-    .port-row input:focus { border-color: var(--accent); }
-    .port-hint { color: var(--muted); font-size: 11px; }
+.btn-accent { background: var(--accent); color: var(--bg); font-weight: 600; }
+.btn-muted  { background: var(--entry);  color: var(--fg); }
+.btn-green  { background: var(--green);  color: var(--bg); font-weight: 700; font-size: 15px; }
+.btn-ghost  { background: transparent; color: var(--red); border: 1px solid rgba(243,139,168,.4); }
+.btn-icon   { padding: 10px 13px; }
+.btn-full   { width: 100%; padding: 13px; }
 
-    /* ── Right panel ── */
-    .right-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 0;
-    }
+/* ── Status line ─────────────────────────────────────────────────────────── */
+#status { font-size: 13px; color: var(--muted); min-height: 18px; }
 
-    .output-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    #out-status { font-size: 12px; color: var(--muted); font-family: monospace; }
+/* ── Port row ────────────────────────────────────────────────────────────── */
+.port-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border-radius: var(--r); padding: 11px 14px;
+}
+.port-row label { font-size: 13px; color: var(--muted); }
+.port-row input {
+  width: 82px;
+  background: var(--entry); border: 1px solid transparent; border-radius: 6px;
+  color: var(--fg); font-family: monospace; font-size: 14px;
+  padding: 6px 9px; outline: none; transition: border-color .15s;
+}
+.port-row input:focus { border-color: var(--accent); }
+.port-hint { color: var(--muted); font-size: 12px; margin-left: auto; }
 
-    #output {
-      flex: 1;
-      background: var(--panel);
-      border-radius: var(--r);
-      color: var(--fg);
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      padding: 12px;
-      resize: none;
-      border: none;
-      outline: none;
-      overflow: auto;
-      white-space: pre;
-      min-height: 0;
-      line-height: 1.5;
-    }
+/* ── Output panel ────────────────────────────────────────────────────────── */
+.out-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#out-status { font-size: 12px; font-family: monospace; color: var(--muted); flex: 1; }
 
-    /* ── Modal ── */
-    .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.65);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-    }
-    .overlay.hidden { display: none; }
+#output {
+  flex: 1; min-height: 220px;
+  background: var(--panel); border-radius: var(--r);
+  color: var(--fg); font-family: 'Courier New', monospace; font-size: 12px;
+  line-height: 1.55; padding: 14px;
+  resize: none; border: none; outline: none;
+  overflow: auto; white-space: pre;
+}
 
-    .modal {
-      background: var(--panel);
-      border-radius: 10px;
-      padding: 22px;
-      width: 560px;
-      max-width: 95vw;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      box-shadow: 0 24px 64px rgba(0,0,0,.55);
-    }
-    .modal h2   { font-size: 15px; }
-    .modal p    { font-size: 13px; color: var(--muted); line-height: 1.5; }
-    .modal textarea {
-      background: var(--entry);
-      border: 1px solid transparent;
-      border-radius: var(--r);
-      color: var(--fg);
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      padding: 10px;
-      resize: vertical;
-      outline: none;
-      width: 100%;
-      line-height: 1.5;
-    }
-    .modal textarea:focus { border-color: var(--accent); }
+/* ── Tab bar (mobile only) ───────────────────────────────────────────────── */
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--panel); border-top: 1px solid var(--entry);
+  display: flex; z-index: 100;
+}
+.tab-btn {
+  flex: 1; border: none; cursor: pointer; background: transparent;
+  color: var(--muted); font-family: inherit; font-size: 11px; font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  transition: color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-btn .ti { font-size: 21px; line-height: 1; }
+.tab-btn.active { color: var(--accent); }
 
-    .modal-btns { display: flex; justify-content: flex-end; gap: 8px; }
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.65);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; padding: 20px;
+}
+.overlay.hidden { display: none; }
 
-    .err { font-size: 12px; color: var(--red); min-height: 16px; }
+.modal {
+  background: var(--panel); border-radius: 16px;
+  padding: 22px; width: 560px; max-width: 100%;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 32px 80px rgba(0,0,0,.6);
+  max-height: 90dvh; overflow-y: auto;
+}
+.modal h2   { font-size: 16px; font-weight: 700; }
+.modal .hint{ font-size: 13px; color: var(--muted); line-height: 1.5; }
+.modal textarea {
+  background: var(--entry); border: 1px solid transparent; border-radius: 8px;
+  color: var(--fg); font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 11px; resize: vertical; outline: none; width: 100%; line-height: 1.5;
+  transition: border-color .15s;
+}
+.modal textarea:focus { border-color: var(--accent); }
+.modal-btns { display: flex; justify-content: flex-end; gap: 8px; }
+.err { font-size: 13px; color: var(--red); line-height: 1.4; min-height: 18px; }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--entry); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--entry); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Desktop (≥ 768 px) ──────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .header-sub { display: block; }
+
+  .panels {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: 1fr;
+    gap: 12px;
+    padding: 12px 16px 16px;
+    position: static;
+    overflow: hidden;
+  }
+
+  /* Both panels always visible */
+  .panel { position: static; overflow: hidden; padding: 0; height: 100%; }
+  .panel--hidden { display: flex !important; }
+
+  /* Left: list is the only scrollable part */
+  #panel-chain { overflow: hidden; }
+  .list-card   { flex: 1; min-height: 0; overflow-y: auto; }
+
+  /* Right: output fills remaining height */
+  #panel-output { min-height: 0; }
+  #output { min-height: 0; }
+
+  .tab-bar { display: none; }
+}
+
+/* ── Mobile: bottom-sheet modal ──────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .overlay { align-items: flex-end; padding: 0; }
+  .modal {
+    width: 100%; border-radius: 20px 20px 0 0;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+    animation: sheet-up .22s cubic-bezier(.4,0,.2,1);
+  }
+  .modal::before {
+    content: ''; display: block;
+    width: 40px; height: 4px;
+    background: var(--muted); border-radius: 99px;
+    margin: 0 auto -2px; opacity: .4;
+  }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
   </style>
 </head>
 <body>
 
 <header>
-  <h1>ProxyChainGen</h1>
-  <span class="sub">Client → A → B → … → Internet</span>
+  <img src="icon.svg" class="app-logo" alt="ProxyChainGen">
+  <div>
+    <h1>ProxyChainGen</h1>
+    <div class="header-sub">Client → A → B → … → Internet</div>
+  </div>
 </header>
 
-<main>
-  <div class="left-panel">
-    <span class="section-label">Proxy Chain &nbsp;<span style="font-size:9px">(top = first hop)</span></span>
+<div class="panels">
 
-    <div id="proxy-list">
-      <div class="empty-hint">Add at least 2 proxies</div>
-    </div>
-
+  <!-- Chain builder -->
+  <section id="panel-chain" class="panel" aria-label="Chain builder">
+    <div class="lbl">Proxy Chain <span style="font-size:9px;letter-spacing:0;text-transform:none;font-weight:400">(top = first hop)</span></div>
+    <div class="chain-flow" id="chain-flow"></div>
+    <div class="list-card"><div id="proxy-list"></div></div>
     <div class="btn-row">
       <button class="btn-accent" onclick="openModal('uri')">+ URI</button>
-      <button class="btn-panel"  onclick="openModal('json')">+ JSON</button>
-      <button class="btn-panel btn-icon" onclick="moveUp()"        title="Move up">↑</button>
-      <button class="btn-panel btn-icon" onclick="moveDown()"      title="Move down">↓</button>
+      <button class="btn-muted"  onclick="openModal('json')">+ JSON</button>
+      <button class="btn-muted btn-icon" onclick="moveUp()"          title="Move up">↑</button>
+      <button class="btn-muted btn-icon" onclick="moveDown()"        title="Move down">↓</button>
       <button class="btn-ghost  btn-icon" onclick="removeSelected()" title="Remove">✕</button>
     </div>
-
     <div id="status"></div>
-
     <div class="port-row">
-      <label for="socks-port">SOCKS5 port:</label>
-      <input type="number" id="socks-port" value="1080" min="1" max="65534">
-      <span class="port-hint">HTTP = port+1</span>
+      <label for="socks-port">SOCKS5 port</label>
+      <input type="number" id="socks-port" value="1080" min="1" max="65534" inputmode="numeric">
+      <span class="port-hint">HTTP = port + 1</span>
     </div>
+    <button class="btn-green btn-full" onclick="generate()">⚡ Generate Chain</button>
+  </section>
 
-    <button class="btn-green" onclick="generate()" style="padding:10px;width:100%">
-      ⚡ Generate Chain
-    </button>
-  </div>
-
-  <div class="right-panel">
-    <div class="output-header">
-      <span class="section-label">Output JSON</span>
+  <!-- Output -->
+  <section id="panel-output" class="panel panel--hidden" aria-label="Output config">
+    <div class="out-header">
+      <span class="lbl">Output JSON</span>
       <span id="out-status"></span>
     </div>
     <textarea id="output" readonly placeholder="Generated config will appear here…"></textarea>
     <div class="btn-row">
       <button class="btn-accent" onclick="copyOutput()">Copy</button>
-      <button class="btn-panel"  onclick="saveOutput()">Save as…</button>
+      <button class="btn-muted"  onclick="saveOutput()">Save as…</button>
     </div>
-  </div>
-</main>
+  </section>
 
-<!-- Paste modal -->
-<div class="overlay hidden" id="overlay" onclick="overlayClick(event)">
-  <div class="modal">
-    <h2 id="modal-title"></h2>
-    <p  id="modal-hint"></p>
-    <textarea id="modal-input" spellcheck="false"></textarea>
-    <div class="err" id="modal-err"></div>
+</div>
+
+<!-- Tab bar (mobile) -->
+<nav class="tab-bar" aria-label="Sections">
+  <button class="tab-btn active" data-tab="chain" onclick="switchTab('chain')">
+    <span class="ti">🔗</span>Chain
+  </button>
+  <button class="tab-btn" data-tab="output" onclick="switchTab('output')">
+    <span class="ti">📄</span>Output
+  </button>
+</nav>
+
+<!-- Modal -->
+<div class="overlay hidden" id="overlay" onclick="overlayBg(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-h">
+    <h2 id="modal-h"></h2>
+    <p class="hint" id="modal-hint"></p>
+    <textarea id="modal-ta" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    <p class="err" id="modal-err" role="alert" aria-live="polite"></p>
     <div class="modal-btns">
-      <button class="btn-panel"  onclick="closeModal()">Cancel</button>
+      <button class="btn-muted"  onclick="closeModal()">Cancel</button>
       <button class="btn-accent" onclick="confirmModal()">Add</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── State ────────────────────────────────────────────────────────────────────
-const entries = [];   // { label, proto, source:'uri'|'json', parsed?, outbound? }
-let sel = -1;
-let modalMode = '';
+// ── SW registration ───────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-// ── Base64 ───────────────────────────────────────────────────────────────────
-function b64pad(s)    { return s + '='.repeat((4 - s.length % 4) % 4); }
-function b64dec(s)    { return atob(b64pad(s.replace(/-/g,'+').replace(/_/g,'/'))); }
+// ── State ─────────────────────────────────────────────────────────────────────
+const entries = [];
+let sel = -1, modalMode = '';
 
-// ── URI parsers ──────────────────────────────────────────────────────────────
+// ── Responsive helpers ────────────────────────────────────────────────────────
+const isMobile = () => window.innerWidth < 768;
+
+function switchTab(tab) {
+  const mobile = isMobile();
+  document.getElementById('panel-chain').classList.toggle('panel--hidden', mobile && tab !== 'chain');
+  document.getElementById('panel-output').classList.toggle('panel--hidden', mobile && tab !== 'output');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+}
+
+// Re-apply active tab on resize so neither panel gets stuck hidden/visible
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.tab-btn.active')?.dataset.tab || 'chain';
+  switchTab(active);
+});
+
+// ── Base64 ────────────────────────────────────────────────────────────────────
+function b64dec(s) {
+  const pad = (4 - s.length % 4) % 4;
+  return atob((s + '='.repeat(pad)).replace(/-/g, '+').replace(/_/g, '/'));
+}
+
+// ── URI parsers ───────────────────────────────────────────────────────────────
 function parseVmess(uri) {
   let j;
-  try { j = JSON.parse(b64dec(uri.slice(8))); }
-  catch(e) { throw new Error(`Invalid vmess URI: ${e.message}`); }
+  try { j = JSON.parse(b64dec(uri.slice(8))); } catch(e) { throw new Error(`Invalid vmess: ${e.message}`); }
   return {
-    type:'vmess', remark: j.ps||'vmess',
-    address: j.add||'', port: parseInt(j.port)||443,
-    uuid: j.id||'', alterId: parseInt(j.aid)||0,
-    security: j.scy||'auto', network: j.net||'tcp',
-    tls: j.tls||'', sni: j.sni||j.host||'',
-    path: j.path||'', host: j.host||'',
-    alpn: j.alpn||'', fp: j.fp||'',
+    type:'vmess', remark:j.ps||'vmess', address:j.add||'', port:+j.port||443,
+    uuid:j.id||'', alterId:+j.aid||0, security:j.scy||'auto', network:j.net||'tcp',
+    tls:j.tls||'', sni:j.sni||j.host||'', path:j.path||'', host:j.host||'',
+    alpn:j.alpn||'', fp:j.fp||'',
   };
 }
 
 function parseVless(uri) {
   const u = new URL(uri), q = u.searchParams;
   return {
-    type:'vless', remark: decodeURIComponent(u.hash.slice(1))||'vless',
-    uuid: u.username||'', address: u.hostname||'',
-    port: u.port ? parseInt(u.port) : 443,
-    encryption: q.get('encryption')||'none', flow: q.get('flow')||'',
-    network: q.get('type')||'tcp', security: q.get('security')||'none',
-    sni: q.get('sni')||'', fp: q.get('fp')||'',
-    path: q.get('path')||'', host: q.get('host')||'',
-    serviceName: q.get('serviceName')||'', pbk: q.get('pbk')||'',
-    sid: q.get('sid')||'', spx: q.get('spx')||'', alpn: q.get('alpn')||'',
+    type:'vless', remark:decodeURIComponent(u.hash.slice(1))||'vless',
+    uuid:u.username||'', address:u.hostname||'', port:u.port?+u.port:443,
+    encryption:q.get('encryption')||'none', flow:q.get('flow')||'',
+    network:q.get('type')||'tcp', security:q.get('security')||'none',
+    sni:q.get('sni')||'', fp:q.get('fp')||'', path:q.get('path')||'', host:q.get('host')||'',
+    serviceName:q.get('serviceName')||'', pbk:q.get('pbk')||'',
+    sid:q.get('sid')||'', spx:q.get('spx')||'', alpn:q.get('alpn')||'',
   };
 }
 
 function parseTrojan(uri) {
   const u = new URL(uri), q = u.searchParams;
   return {
-    type:'trojan', remark: decodeURIComponent(u.hash.slice(1))||'trojan',
-    password: decodeURIComponent(u.username||''),
-    address: u.hostname||'', port: u.port ? parseInt(u.port) : 443,
-    network: q.get('type')||'tcp', security: q.get('security')||'tls',
-    sni: q.get('sni')||u.hostname||'', fp: q.get('fp')||'',
-    path: q.get('path')||'', host: q.get('host')||'',
-    serviceName: q.get('serviceName')||'', alpn: q.get('alpn')||'',
+    type:'trojan', remark:decodeURIComponent(u.hash.slice(1))||'trojan',
+    password:decodeURIComponent(u.username||''), address:u.hostname||'', port:u.port?+u.port:443,
+    network:q.get('type')||'tcp', security:q.get('security')||'tls',
+    sni:q.get('sni')||u.hostname||'', fp:q.get('fp')||'',
+    path:q.get('path')||'', host:q.get('host')||'',
+    serviceName:q.get('serviceName')||'', alpn:q.get('alpn')||'',
   };
 }
 
 function parseSS(uri) {
   const hi = uri.indexOf('#');
-  const remark = hi >= 0 ? decodeURIComponent(uri.slice(hi+1)) : 'shadowsocks';
-  const body   = uri.slice(5, hi >= 0 ? hi : undefined);  // after ss://
-
+  const remark = hi >= 0 ? decodeURIComponent(uri.slice(hi + 1)) : 'shadowsocks';
+  const body   = uri.slice(5, hi >= 0 ? hi : undefined);
   if (body.includes('@')) {
-    // Modern: [b64(method:pass) | method:pass] @ host:port
     const u = new URL(uri.split('#')[0]);
     let method, password;
     try {
-      const dec = b64dec(u.username);
-      const ci  = dec.indexOf(':');
-      method = dec.slice(0, ci); password = dec.slice(ci+1);
+      const d = b64dec(u.username), ci = d.indexOf(':');
+      method = d.slice(0, ci); password = d.slice(ci + 1);
     } catch {
-      method = decodeURIComponent(u.username||'');
-      password = decodeURIComponent(u.password||'');
+      method = decodeURIComponent(u.username || '');
+      password = decodeURIComponent(u.password || '');
     }
-    return { type:'shadowsocks', remark, method, password,
-             address: u.hostname, port: parseInt(u.port)||443 };
-  } else {
-    // Legacy: b64(method:pass@host:port)
-    const dec = b64dec(body);
-    const m = dec.match(/^(.+?):(.+)@(.+):(\d+)$/);
-    if (!m) throw new Error('Cannot parse ss URI');
-    return { type:'shadowsocks', remark, method:m[1], password:m[2],
-             address:m[3], port:parseInt(m[4]) };
+    return { type:'shadowsocks', remark, method, password, address:u.hostname, port:+u.port||443 };
   }
+  const dec = b64dec(body), m = dec.match(/^(.+?):(.+)@(.+):(\d+)$/);
+  if (!m) throw new Error('Cannot parse ss URI');
+  return { type:'shadowsocks', remark, method:m[1], password:m[2], address:m[3], port:+m[4] };
 }
 
 function parseURI(uri) {
@@ -403,304 +464,232 @@ function parseURI(uri) {
   if (uri.startsWith('vless://'))  return parseVless(uri);
   if (uri.startsWith('trojan://')) return parseTrojan(uri);
   if (uri.startsWith('ss://'))     return parseSS(uri);
-  throw new Error(`Unsupported scheme: ${uri.slice(0,40)}`);
+  throw new Error(`Unsupported scheme: ${uri.slice(0, 40)}`);
 }
 
-// ── Stream settings ──────────────────────────────────────────────────────────
+// ── Stream settings ───────────────────────────────────────────────────────────
 function buildStream(cfg) {
-  const network  = cfg.network  || 'tcp';
-  const security = cfg.security || cfg.tls || '';
-  const s = { network };
-
-  if (security === 'reality') {
+  const net = cfg.network || 'tcp', sec = cfg.security || cfg.tls || '';
+  const s = { network: net };
+  if (sec === 'reality') {
     s.security = 'reality';
-    s.realitySettings = {
-      serverName:  cfg.sni || '',
-      fingerprint: cfg.fp  || 'chrome',
-      publicKey:   cfg.pbk || '',
-      shortId:     cfg.sid || '',
-      spiderX:     cfg.spx || '/',
-    };
-  } else if (security === 'tls' || cfg.tls === 'tls') {
+    s.realitySettings = { serverName:cfg.sni||'', fingerprint:cfg.fp||'chrome', publicKey:cfg.pbk||'', shortId:cfg.sid||'', spiderX:cfg.spx||'/' };
+  } else if (sec === 'tls' || cfg.tls === 'tls') {
     s.security = 'tls';
-    const tls = {};
-    if (cfg.sni)  tls.serverName  = cfg.sni;
-    if (cfg.fp)   tls.fingerprint = cfg.fp;
-    if (cfg.alpn) tls.alpn = cfg.alpn.split(',').map(a=>a.trim()).filter(Boolean);
-    s.tlsSettings = tls;
+    const t = {};
+    if (cfg.sni)  t.serverName  = cfg.sni;
+    if (cfg.fp)   t.fingerprint = cfg.fp;
+    if (cfg.alpn) t.alpn = cfg.alpn.split(',').map(a => a.trim()).filter(Boolean);
+    s.tlsSettings = t;
   }
-
-  if (network === 'ws') {
-    const ws = { path: cfg.path||'/' };
-    if (cfg.host) ws.headers = { Host: cfg.host };
-    s.wsSettings = ws;
-  } else if (network === 'grpc') {
-    s.grpcSettings = { serviceName: cfg.serviceName||cfg.path||'' };
-  } else if (network === 'h2' || network === 'http') {
-    const h2 = { path: cfg.path||'/' };
-    if (cfg.host) h2.host = cfg.host.split(',').map(h=>h.trim());
-    s.httpSettings = h2;
+  if (net === 'ws') {
+    const w = { path: cfg.path || '/' };
+    if (cfg.host) w.headers = { Host: cfg.host };
+    s.wsSettings = w;
+  } else if (net === 'grpc') {
+    s.grpcSettings = { serviceName: cfg.serviceName || cfg.path || '' };
+  } else if (net === 'h2' || net === 'http') {
+    const h = { path: cfg.path || '/' };
+    if (cfg.host) h.host = cfg.host.split(',').map(x => x.trim());
+    s.httpSettings = h;
   }
-
   return s;
 }
 
-// ── Outbound builder ─────────────────────────────────────────────────────────
+// ── Outbound builder ──────────────────────────────────────────────────────────
 function uriToOutbound(cfg, tag) {
-  const stream = buildStream(cfg);
-  if (cfg.type === 'vmess') {
-    return { tag, protocol:'vmess',
-      settings:{ vnext:[{ address:cfg.address, port:cfg.port,
-        users:[{ id:cfg.uuid, alterId:cfg.alterId||0, security:cfg.security||'auto' }] }] },
-      streamSettings: stream };
-  }
+  const st = buildStream(cfg);
+  if (cfg.type === 'vmess')
+    return { tag, protocol:'vmess', settings:{ vnext:[{ address:cfg.address, port:cfg.port, users:[{ id:cfg.uuid, alterId:cfg.alterId||0, security:cfg.security||'auto' }] }] }, streamSettings:st };
   if (cfg.type === 'vless') {
-    const user = { id:cfg.uuid, encryption:cfg.encryption||'none' };
-    if (cfg.flow) user.flow = cfg.flow;
-    return { tag, protocol:'vless',
-      settings:{ vnext:[{ address:cfg.address, port:cfg.port, users:[user] }] },
-      streamSettings: stream };
+    const u = { id:cfg.uuid, encryption:cfg.encryption||'none' };
+    if (cfg.flow) u.flow = cfg.flow;
+    return { tag, protocol:'vless', settings:{ vnext:[{ address:cfg.address, port:cfg.port, users:[u] }] }, streamSettings:st };
   }
-  if (cfg.type === 'trojan') {
-    return { tag, protocol:'trojan',
-      settings:{ servers:[{ address:cfg.address, port:cfg.port, password:cfg.password }] },
-      streamSettings: stream };
-  }
-  if (cfg.type === 'shadowsocks') {
-    return { tag, protocol:'shadowsocks',
-      settings:{ servers:[{ address:cfg.address, port:cfg.port,
-        method:cfg.method, password:cfg.password, level:0 }] },
-      streamSettings:{ network:'tcp' } };
-  }
+  if (cfg.type === 'trojan')
+    return { tag, protocol:'trojan', settings:{ servers:[{ address:cfg.address, port:cfg.port, password:cfg.password }] }, streamSettings:st };
+  if (cfg.type === 'shadowsocks')
+    return { tag, protocol:'shadowsocks', settings:{ servers:[{ address:cfg.address, port:cfg.port, method:cfg.method, password:cfg.password, level:0 }] }, streamSettings:{ network:'tcp' } };
   throw new Error(`Unknown type: ${cfg.type}`);
 }
 
-// ── JSON outbound extractor ───────────────────────────────────────────────────
+// ── Outbound extractor ────────────────────────────────────────────────────────
 const SKIP = new Set(['freedom','blackhole','dns','loopback']);
-
 function extractOutbound(cfg) {
-  for (const ob of cfg.outbounds||[])
-    if (!SKIP.has(ob.protocol)) return ob;
+  for (const ob of cfg.outbounds || []) if (!SKIP.has(ob.protocol)) return ob;
   throw new Error('No proxy outbound found in config');
 }
 
-// ── Chain builder ────────────────────────────────────────────────────────────
-function buildChain(ents, socksPort) {
+// ── Chain builder ─────────────────────────────────────────────────────────────
+function buildChain(ents, port) {
   if (ents.length < 2) throw new Error('Need at least 2 entries');
-
-  const outbounds = ents.map((e, i) => {
-    const tag = `proxy-${String.fromCharCode(97+i)}`;
-    if (e.source === 'uri') return uriToOutbound(e.parsed, tag);
-    return { ...e.outbound, tag };
+  const obs = ents.map((e, i) => {
+    const tag = `proxy-${String.fromCharCode(97 + i)}`;
+    return e.source === 'uri' ? uriToOutbound(e.parsed, tag) : { ...e.outbound, tag };
   });
-
-  for (let i = 1; i < outbounds.length; i++) {
-    const prevSec = outbounds[i-1].streamSettings?.security || '';
-    outbounds[i].proxySettings = {
-      tag: outbounds[i-1].tag,
-      transportLayer: prevSec === 'tls' || prevSec === 'reality',
-    };
+  for (let i = 1; i < obs.length; i++) {
+    const sec = obs[i - 1].streamSettings?.security || '';
+    obs[i].proxySettings = { tag: obs[i - 1].tag, transportLayer: sec === 'tls' || sec === 'reality' };
   }
-
-  const lastTag = outbounds.at(-1).tag;
+  const last = obs.at(-1).tag;
   return {
-    log: { loglevel:'warning' },
+    log: { loglevel: 'warning' },
     inbounds: [
-      { tag:'socks', port:socksPort, listen:'127.0.0.1',
-        protocol:'socks', settings:{ auth:'noauth', udp:true },
-        sniffing:{ enabled:true, destOverride:['http','tls'] } },
-      { tag:'http', port:socksPort+1, listen:'127.0.0.1', protocol:'http' },
+      { tag:'socks', port, listen:'127.0.0.1', protocol:'socks', settings:{ auth:'noauth', udp:true }, sniffing:{ enabled:true, destOverride:['http','tls'] } },
+      { tag:'http',  port: port + 1, listen:'127.0.0.1', protocol:'http' },
     ],
-    outbounds: [
-      outbounds.at(-1),
-      ...outbounds.slice(0,-1),
-      { tag:'direct', protocol:'freedom',   settings:{} },
-      { tag:'block',  protocol:'blackhole',  settings:{} },
-    ],
-    routing: {
-      domainStrategy: 'IPIfNonMatch',
-      rules: [{ type:'field', inboundTag:['socks','http'], outboundTag:lastTag }],
-    },
+    outbounds: [ obs.at(-1), ...obs.slice(0, -1), { tag:'direct', protocol:'freedom', settings:{} }, { tag:'block', protocol:'blackhole', settings:{} } ],
+    routing: { domainStrategy:'IPIfNonMatch', rules:[{ type:'field', inboundTag:['socks','http'], outboundTag:last }] },
   };
 }
 
-// ── UI ───────────────────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+// ── Render ────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function refreshList() {
+function render() {
   const list   = document.getElementById('proxy-list');
   const status = document.getElementById('status');
+  const flow   = document.getElementById('chain-flow');
 
   if (!entries.length) {
-    list.innerHTML = '<div class="empty-hint">Add at least 2 proxies</div>';
-    status.textContent = 'Add at least 2 configs';
-    status.style.color = 'var(--muted)';
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">⛓️</div><p>Add at least 2 proxies</p><p class="empty-sub">Tap + URI or + JSON below</p></div>`;
+    status.innerHTML = '';
+    flow.className = 'chain-flow';
     return;
   }
 
-  list.innerHTML = entries.map((e,i) => `
-    <div class="proxy-item${i===sel?' selected':''}" onclick="selectItem(${i})">
-      <span class="proxy-num">[${i+1}]</span>
+  list.innerHTML = entries.map((e, i) => `
+    <div class="proxy-item${i === sel ? ' sel' : ''}" onclick="selectItem(${i})">
+      <span class="proxy-num">[${i + 1}]</span>
       <span class="proxy-label">${esc(e.label)}</span>
-      <span class="proxy-badge">${esc(e.proto)}</span>
-    </div>
-  `).join('');
+      <span class="proto-badge proto-${esc(e.proto)}">${esc(e.proto)}</span>
+    </div>`).join('');
 
   const n = entries.length;
-  status.textContent = n === 1 ? 'Add 1 more config' : `${n} configs · ${n}-hop chain ready`;
-  status.style.color = n >= 2 ? 'var(--green)' : 'var(--muted)';
+  if (n >= 2) {
+    const hops = entries.map((_, i) => `<span class="n">proxy-${String.fromCharCode(97 + i)}</span>`).join('<span class="a">→</span>');
+    flow.innerHTML = `Client <span class="a">→</span>${hops}<span class="a">→</span><span class="d">Internet</span>`;
+    flow.className = 'chain-flow show';
+    status.innerHTML = `<span style="color:var(--green)">${n} hops ready</span>`;
+  } else {
+    flow.className = 'chain-flow';
+    status.innerHTML = `<span style="color:var(--accent)">Add 1 more config</span>`;
+  }
 }
 
-function selectItem(i) {
-  sel = i === sel ? -1 : i;
-  refreshList();
-}
+// ── Interactions ──────────────────────────────────────────────────────────────
+function selectItem(i) { sel = i === sel ? -1 : i; render(); }
 
 function moveUp() {
   if (sel <= 0) return;
-  [entries[sel-1], entries[sel]] = [entries[sel], entries[sel-1]];
-  sel--;
-  refreshList();
+  [entries[sel - 1], entries[sel]] = [entries[sel], entries[sel - 1]]; sel--; render();
 }
 
 function moveDown() {
-  if (sel < 0 || sel >= entries.length-1) return;
-  [entries[sel], entries[sel+1]] = [entries[sel+1], entries[sel]];
-  sel++;
-  refreshList();
+  if (sel < 0 || sel >= entries.length - 1) return;
+  [entries[sel], entries[sel + 1]] = [entries[sel + 1], entries[sel]]; sel++; render();
 }
 
 function removeSelected() {
   if (sel < 0 || sel >= entries.length) return;
   entries.splice(sel, 1);
-  sel = entries.length ? Math.min(sel, entries.length-1) : -1;
-  refreshList();
+  sel = entries.length ? Math.min(sel, entries.length - 1) : -1;
+  render();
 }
 
 function generate() {
   const port = parseInt(document.getElementById('socks-port').value) || 1080;
-  const outStatus = document.getElementById('out-status');
+  const os = document.getElementById('out-status');
   try {
     const result = buildChain(entries, port);
     document.getElementById('output').value = JSON.stringify(result, null, 2);
-    const chain = entries.map((_,i) => `proxy-${String.fromCharCode(97+i)}`).join(' → ');
-    outStatus.textContent = `✓  ${chain} → Internet  ·  SOCKS5 :${port}  HTTP :${port+1}`;
-    outStatus.style.color = 'var(--green)';
+    const chain = entries.map((_, i) => `proxy-${String.fromCharCode(97 + i)}`).join(' → ');
+    os.textContent = `✓  ${chain} → Internet  ·  :${port} / :${port + 1}`;
+    os.style.color = 'var(--green)';
+    if (isMobile()) switchTab('output');
   } catch(e) {
-    outStatus.textContent = `✗  ${e.message}`;
-    outStatus.style.color = 'var(--red)';
+    os.textContent = `✗  ${e.message}`;
+    os.style.color = 'var(--red)';
   }
 }
 
 function copyOutput() {
-  const text = document.getElementById('output').value.trim();
-  const outStatus = document.getElementById('out-status');
-  if (!text) { outStatus.textContent = 'Generate first'; return; }
-  navigator.clipboard.writeText(text).then(() => {
-    outStatus.textContent = 'Copied!';
-    outStatus.style.color = 'var(--accent)';
-  });
+  const t = document.getElementById('output').value.trim();
+  const os = document.getElementById('out-status');
+  if (!t) { os.textContent = 'Generate first'; return; }
+  navigator.clipboard.writeText(t).then(() => { os.textContent = 'Copied!'; os.style.color = 'var(--accent)'; });
 }
 
 function saveOutput() {
-  const text = document.getElementById('output').value.trim();
-  if (!text) return;
+  const t = document.getElementById('output').value.trim();
+  if (!t) return;
   const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob([text], {type:'application/json'})),
+    href: URL.createObjectURL(new Blob([t], { type:'application/json' })),
     download: 'proxy-chain.json',
   });
-  a.click();
-  URL.revokeObjectURL(a.href);
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
-// ── Modal ────────────────────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────────
 function openModal(mode) {
   modalMode = mode;
   document.getElementById('overlay').classList.remove('hidden');
   document.getElementById('modal-err').textContent = '';
-  document.getElementById('modal-input').value = '';
-
-  if (mode === 'uri') {
-    document.getElementById('modal-title').textContent = 'Add — Paste URI(s)';
-    document.getElementById('modal-hint').textContent =
-      'One or more share links per line: vmess:// · vless:// · trojan:// · ss://';
-    document.getElementById('modal-input').rows = 6;
-  } else {
-    document.getElementById('modal-title').textContent = 'Add — Paste JSON';
-    document.getElementById('modal-hint').textContent =
-      'Paste a full V2Ray/Xray config JSON — or — a single outbound object.';
-    document.getElementById('modal-input').rows = 14;
-  }
-  document.getElementById('modal-input').focus();
+  document.getElementById('modal-ta').value = '';
+  document.getElementById('modal-h').textContent    = mode === 'uri' ? 'Add — Paste URI(s)' : 'Add — Paste JSON';
+  document.getElementById('modal-hint').textContent = mode === 'uri'
+    ? 'One or more share links per line: vmess:// · vless:// · trojan:// · ss://'
+    : 'Paste a full V2Ray/Xray config JSON — or — a single outbound object.';
+  document.getElementById('modal-ta').rows = mode === 'uri' ? 5 : 12;
+  requestAnimationFrame(() => document.getElementById('modal-ta').focus());
 }
 
-function closeModal() {
-  document.getElementById('overlay').classList.add('hidden');
-}
-
-function overlayClick(e) {
-  if (e.target === document.getElementById('overlay')) closeModal();
-}
+function closeModal() { document.getElementById('overlay').classList.add('hidden'); }
+function overlayBg(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
 
 function confirmModal() {
-  const text   = document.getElementById('modal-input').value.trim();
-  const errEl  = document.getElementById('modal-err');
+  const text  = document.getElementById('modal-ta').value.trim();
+  const errEl = document.getElementById('modal-err');
   errEl.textContent = '';
   if (!text) { errEl.textContent = 'Nothing pasted.'; return; }
 
   if (modalMode === 'uri') {
-    const lines  = text.split('\n').map(l=>l.trim()).filter(Boolean);
-    const added  = [], errs = [];
-    for (const line of lines) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const added = [], errs = [];
+    for (const l of lines) {
       try {
-        const p = parseURI(line);
+        const p = parseURI(l);
         added.push({ label: p.remark || `${p.address}:${p.port}`, proto: p.type, parsed: p, source:'uri' });
       } catch(e) { errs.push(e.message); }
     }
     if (!added.length) { errEl.textContent = errs[0] || 'No valid URIs found.'; return; }
     entries.push(...added);
-    if (errs.length) errEl.textContent = `Added ${added.length}, skipped ${errs.length} error(s).`;
+    if (errs.length) errEl.textContent = `Added ${added.length}, skipped ${errs.length}.`;
     else closeModal();
   } else {
     try {
       let cfg;
       try { cfg = JSON.parse(text); } catch(e) { throw new Error(`Invalid JSON: ${e.message}`); }
       let ob;
-      if ('outbounds' in cfg) {
-        ob = extractOutbound(cfg);
-      } else if ('protocol' in cfg) {
-        ob = cfg;
-      } else {
-        throw new Error('Paste a full V2Ray config or a single outbound object.');
-      }
-      const addr = ob.settings?.vnext?.[0]?.address
-                || ob.settings?.servers?.[0]?.address
-                || '?';
-      const port = ob.settings?.vnext?.[0]?.port
-                || ob.settings?.servers?.[0]?.port
-                || '?';
-      entries.push({ label:`${addr}:${port}`, proto: ob.protocol||'?', outbound: ob, source:'json' });
+      if ('outbounds' in cfg)    ob = extractOutbound(cfg);
+      else if ('protocol' in cfg) ob = cfg;
+      else throw new Error('Paste a full V2Ray config or a single outbound object.');
+      const addr = ob.settings?.vnext?.[0]?.address || ob.settings?.servers?.[0]?.address || '?';
+      const port = ob.settings?.vnext?.[0]?.port    || ob.settings?.servers?.[0]?.port    || '?';
+      entries.push({ label:`${addr}:${port}`, proto: ob.protocol || '?', outbound: ob, source:'json' });
       closeModal();
-    } catch(e) {
-      errEl.textContent = e.message; return;
-    }
+    } catch(e) { errEl.textContent = e.message; return; }
   }
-
-  sel = -1;
-  refreshList();
+  sel = -1; render();
 }
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
   if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) &&
-      !document.getElementById('overlay').classList.contains('hidden')) {
-    confirmModal();
-  }
+      !document.getElementById('overlay').classList.contains('hidden')) confirmModal();
 });
 
-refreshList();
+render();
 </script>
 </body>
 </html>
